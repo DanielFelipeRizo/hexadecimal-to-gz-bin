@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor Hex a Bin</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Conversor Hex → Bin</h1>
+        <p class="subtitle">Convierte datos hexadecimales a archivo binario</p>
+        
+        <div class="input-group">
+            <label for="hexInput">Datos Hexadecimales (con o sin prefijo 0x):</label>
+            <textarea id="hexInput" placeholder="Ejemplo: 0x1F8B0800... o 1F8B0800..."></textarea>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-convert" onclick="convertHex()">Convertir</button>
+            <button class="btn-download" id="downloadBtn" onclick="downloadBin()" disabled>Descargar .bin</button>
+            <button class="btn-gz" id="downloadGzBtn" onclick="downloadGz()" disabled style="display:none;">Descargar .gz</button>
+        </div>
+        
+        <div class="info-box" id="infoBox"></div>
+    </div>
+
+    <script src="js/script.js" defer></script>
+</body>
+</html>
