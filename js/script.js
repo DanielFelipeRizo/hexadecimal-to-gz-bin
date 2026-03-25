@@ -34,6 +34,76 @@ const FILE_SIGNATURES = [
 ];
 
 /**
+ * Busca una cadena ASCII dentro de un Uint8Array.
+ * Busca en todo el array, o opcionalmente en los primeros N bytes
+ * Y también en los últimos N bytes (para directorio central de ZIPs).
+ */
+function findStringInBytes(bytes, searchStr) {
+    const searchBytes = new TextEncoder().encode(searchStr);
+    const len = bytes.length;
+    const sLen = searchBytes.length;
+    if (len < sLen) return false;
+
+    // Buscar en todo el archivo
+    for (let i = 0; i <= len - sLen; i++) {
+        let found = true;
+        for (let j = 0; j < sLen; j++) {
+            if (bytes[i + j] !== searchBytes[j]) {
+                found = false;
+                break;
+            }
+        }
+        if (found) return true;
+    }
+    return false;
+}
+
+/**
+ * Detecta subtipos de archivos basados en ZIP (APK, JAR, DOCX, XLSX, PPTX, EPUB, etc.)
+ * Escanea TODO el contenido binario buscando nombres de archivos internos del ZIP.
+ */
+function detectZipSubtype(bytes) {
+    // APK: contiene AndroidManifest.xml, classes.dex o resources.arsc
+    if (findStringInBytes(bytes, 'AndroidManifest.xml') ||
+        findStringInBytes(bytes, 'classes.dex') ||
+        findStringInBytes(bytes, 'resources.arsc')) {
+        return { ext: 'apk', type: 'application/vnd.android.package-archive', name: 'APK (Android)' };
+    }
+
+    // DOCX: contiene word/
+    if (findStringInBytes(bytes, 'word/document.xml') ||
+        (findStringInBytes(bytes, 'word/') && findStringInBytes(bytes, '[Content_Types].xml'))) {
+        return { ext: 'docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', name: 'DOCX (Word)' };
+    }
+
+    // XLSX: contiene xl/
+    if (findStringInBytes(bytes, 'xl/workbook.xml') ||
+        (findStringInBytes(bytes, 'xl/') && findStringInBytes(bytes, '[Content_Types].xml'))) {
+        return { ext: 'xlsx', type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', name: 'XLSX (Excel)' };
+    }
+
+    // PPTX: contiene ppt/
+    if (findStringInBytes(bytes, 'ppt/presentation.xml') ||
+        (findStringInBytes(bytes, 'ppt/') && findStringInBytes(bytes, '[Content_Types].xml'))) {
+        return { ext: 'pptx', type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', name: 'PPTX (PowerPoint)' };
+    }
+
+    // EPUB
+    if (findStringInBytes(bytes, 'META-INF/container.xml') ||
+        (findStringInBytes(bytes, 'mimetype') && findStringInBytes(bytes, 'application/epub+zip'))) {
+        return { ext: 'epub', type: 'application/epub+zip', name: 'EPUB (eBook)' };
+    }
+
+    // JAR: contiene META-INF/MANIFEST.MF
+    if (findStringInBytes(bytes, 'META-INF/MANIFEST.MF')) {
+        return { ext: 'jar', type: 'application/java-archive', name: 'JAR (Java)' };
+    }
+
+    // ZIP genérico
+    return null;
+}
+
+/**
  * Detecta el tipo de archivo basándose en los magic bytes
  */
 function detectFileType(bytes) {
@@ -46,7 +116,14 @@ function detectFileType(bytes) {
                     break;
                 }
             }
-            if (match) return sig;
+            if (match) {
+                // Si es ZIP, intentar detectar subtipo (APK, DOCX, JAR, etc.)
+                if (sig.ext === 'zip') {
+                    const subtype = detectZipSubtype(bytes);
+                    if (subtype) return subtype;
+                }
+                return sig;
+            }
         }
     }
     // Chequeo especial para TAR (magic bytes en offset 257)
